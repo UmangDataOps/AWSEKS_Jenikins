@@ -1,0 +1,243 @@
+# Default values for devops-api Helm chart
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  environment: production
+  domain: api.devops.example.com
+
+# Namespace configuration
+namespace:
+  create: true
+  name: production
+
+# Image configuration
+image:
+  repository: "AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/devops-api"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+  hosts:
+    - host: api.devops.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: devops-api-tls
+
+# Deployment configuration
+deployment:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Container configuration
+container:
+  name: devops-api
+  port: 3000
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Health checks
+healthChecks:
+  liveness:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+  startup:
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    failureThreshold: 12
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# Configuration values
+config:
+  nodeEnv: "production"
+  logLevel: "info"
+  apiVersion: "1.0.0"
+  
+  # Feature flags
+  features:
+    usersApi: true
+    healthCheck: true
+    metricsEndpoint: true
+
+# Secrets configuration
+secrets:
+  create: true
+  # External secrets operator
+  externalSecrets:
+    enabled: false
+    backend: aws-secrets-manager
+    projectId: "devops-project"
+
+# Environment-specific overrides
+environments:
+  production:
+    replicas: 3
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  
+  staging:
+    replicas: 2
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  
+  development:
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+# Pod affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - devops-api
+          topologyKey: kubernetes.io/hostname
+
+# Tolerations
+tolerations: []
+
+# Node selector
+nodeSelector:
+  workload: api
+
+# Service Account
+serviceAccount:
+  create: true
+  name: devops-api
+  annotations: {}
+
+# RBAC
+rbac:
+  create: true
+
+# Network policies
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+
+# Monitoring and Observability
+monitoring:
+  prometheus:
+    enabled: true
+    scrapeInterval: 30s
+  grafana:
+    enabled: true
+    dashboards: true
+
+# Backup configuration
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: 30
+
+# Database configuration (if using)
+database:
+  enabled: false
+  type: postgresql
+  external: true
+  host: "postgres.production.svc.cluster.local"
+  port: 5432
+  name: "devops_api_db"
+
+# Logging configuration
+logging:
+  enabled: true
+  level: info
+  format: json
+  elasticsearch:
+    enabled: false
+    host: "elasticsearch.logging.svc.cluster.local"
+    port: 9200

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    environment: production
+  annotations:
+    description: "Production namespace for DevOps API"
+    managed-by: "terraform"

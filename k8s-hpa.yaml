@@ -1,0 +1,126 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: devops-api
+  namespace: production
+  labels:
+    app: devops-api
+spec:
+  # Target the devops-api deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: devops-api
+  
+  # Min and Max replicas
+  minReplicas: 3
+  maxReplicas: 10
+  
+  # Scaling metrics
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Scale up when average CPU > 70%
+    
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Scale up when average memory > 80%
+    
+    # Custom metrics (if using Prometheus)
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "1000"  # Scale up at 1000 requests per pod
+    
+    # Custom metric for API latency
+    - type: Pods
+      pods:
+        metric:
+          name: api_latency_percentile_95
+        target:
+          type: AverageValue
+          averageValue: "100m"  # Scale up if 95th percentile latency > 100ms
+
+  # Scaling behavior (advanced)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+        - type: Percent
+          value: 50  # Scale down by 50% of current replicas
+          periodSeconds: 60
+        - type: Pods
+          value: 1  # Or scale down by 1 pod
+          periodSeconds: 60
+      selectPolicy: Min  # Select the policy that scales down the least
+    
+    scaleUp:
+      stabilizationWindowSeconds: 30  # Wait 30 seconds before scaling up again
+      policies:
+        - type: Percent
+          value: 100  # Double the replicas
+          periodSeconds: 60
+        - type: Pods
+          value: 2  # Or add 2 pods
+          periodSeconds: 60
+      selectPolicy: Max  # Select the policy that scales up the most
+
+---
+# Alternative: Legacy HPA for older Kubernetes versions
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: devops-api-v1
+  namespace: production
+  labels:
+    app: devops-api
+    version: legacy
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: devops-api
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+---
+# Vertical Pod Autoscaler (Optional - for right-sizing resource requests/limits)
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: devops-api-vpa
+  namespace: production
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: devops-api
+  
+  updatePolicy:
+    updateMode: "Auto"  # Can be "Off", "Initial", "Recreate", or "Auto"
+  
+  resourcePolicy:
+    containerPolicies:
+      - containerName: devops-api
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: 1000m
+          memory: 1Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits
