@@ -12,17 +12,17 @@ keywords:
   - aws
   - api
 
-home: https://github.com/yourorg/devops-api
+home: https://github.com/test/devops-api
 sources:
-  - https://github.com/yourorg/devops-api
-  - https://github.com/yourorg/devops-api-helm
+  - https://github.com/test/devops-api
+  - https://github.com/test/devops-api-helm
 
 maintainers:
   - name: DevOps Team
-    email: devops@example.com
-    url: https://example.com/team/devops
+    email: umang1985@gmail.com
+    url: https://test.com/team/devops
 
-icon: https://example.com/icons/devops-api.svg
+icon: https://test.com/icons/devops-api.svg
 
 dependencies: []
 
